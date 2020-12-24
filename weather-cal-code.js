@@ -116,7 +116,7 @@ const weatherCal = {
 
     if (response == menu.share) {
       const layout = this.fm.readString(this.fm.joinPath(this.fm.documentsDirectory(), this.name + ".js")).split('`')[1]
-      const prefs = JSON.stringify(this.getSettings())
+      const prefs = JSON.stringify(await this.getSettings())
       const bg = this.fm.readString(this.bgPath)
       
       const widgetExport = `async function importWidget() {
@@ -169,22 +169,11 @@ const weatherCal = {
         alert.addAction("Cancel")
 
         if ((await alert.present()) == 0) {
-          if (this.fm.fileExists(this.bgPath)) { this.fm.remove(this.bgPath) }
-          if (this.fm.fileExists(this.prefPath)) { this.fm.remove(this.prefPath) }
-          let locationPath = this.fm.joinPath(this.fm.libraryDirectory(), "weather-cal-location")
-          if (this.fm.fileExists(locationPath)) { this.fm.remove(locationPath) }
-          let sunrisePath = this.fm.joinPath(this.fm.libraryDirectory(), "weather-cal-sunrise")
-          if (this.fm.fileExists(sunrisePath)) { this.fm.remove(sunrisePath) }
-          let cachePath = this.fm.joinPath(this.fm.libraryDirectory(), "weather-cal-cache")
-          if (this.fm.fileExists(cachePath)) { this.fm.remove(cachePath) }
-          let covidPath = this.fm.joinPath(this.fm.libraryDirectory(), "weather-cal-covid")
-          if (this.fm.fileExists(covidPath)) { this.fm.remove(covidPath) }
-          let newsPath = this.fm.joinPath(this.fm.libraryDirectory(), "weather-cal-news")
-          if (this.fm.fileExists(newsPath)) { this.fm.remove(newsPath) }
-          let imagePath = this.fm.joinPath(this.fm.joinPath(this.fm.documentsDirectory(), "Weather Cal"), this.name + ".jpg")
-          if (this.fm.fileExists(imagePath)) { this.fm.remove(imagePath) }
-          let dupePath = this.fm.joinPath(this.fm.joinPath(this.fm.documentsDirectory(), "Weather Cal"), this.name + " 2.jpg")
-          if (this.fm.fileExists(dupePath)) { this.fm.remove(dupePath) }
+          for (item of this.fm.listContents(this.fm.libraryDirectory())) {
+            if (item.startsWith("weather-cal-") && item != "weather-cal-api-key" && item != "weather-cal-setup") {
+              this.fm.remove(this.fm.joinPath(this.fm.libraryDirectory(), item))
+            }
+          }
           const success = await this.downloadCode(this.name, this.widgetUrl)
           const message = success ? "This script has been reset. Close the script and reopen it for the change to take effect." : "The reset failed."
           await this.generateAlert(message)
@@ -256,7 +245,7 @@ const weatherCal = {
   },
 
   // Load or reload a table full of preferences.
-  async loadTable(table,category,settingsObject) {
+  async loadPrefsTable(table,category) {
     table.removeAllRows()
     for (settingName in category) {
       if (settingName == "name") continue
@@ -267,13 +256,18 @@ const weatherCal = {
 
       const setting = category[settingName]
 
-      let valText = setting.val + ""
-      if (typeof setting.val == "object") {
-        valText = null
+      let valText
+      if (Array.isArray(setting.val)) {
+        valText = setting.val.map(a => a.title).join(", ")
+        
+      } else if (typeof setting.val == "object") {
         for (subItem in setting.val) {
           const setupText = subItem + ": " + setting.val[subItem]
           valText = (valText ? valText + ", " : "") + setupText
         }
+
+      } else {
+        valText = setting.val + ""
       }
 
       const cell = row.addText(setting.name,valText)
@@ -283,22 +277,22 @@ const weatherCal = {
       if (!setting.type) {
         row.onSelect = async () => {
           const returnVal = await this.promptForText(setting.name,[setting.val],[],setting.description)
-          setting.val = returnVal.textFieldValue(0)
-          await this.loadTable(table,category,settingsObject)
+          setting.val = returnVal.textFieldValue(0).trim()
+          await this.loadPrefsTable(table,category)
         }
 
       } else if (setting.type == "enum") {
         row.onSelect = async () => {
           const returnVal = await this.generateAlert(setting.name,setting.options,setting.description)
           setting.val = setting.options[returnVal]
-          await this.loadTable(table,category,settingsObject)
+          await this.loadPrefsTable(table,category)
         }
 
       } else if (setting.type == "bool") {
         row.onSelect = async () => {
           const returnVal = await this.generateAlert(setting.name,["true","false"],setting.description)
           setting.val = !returnVal
-          await this.loadTable(table,category,settingsObject)
+          await this.loadPrefsTable(table,category)
         }
 
       } else if (setting.type == "multival") {
@@ -309,9 +303,24 @@ const weatherCal = {
           const keys = Array.from(map.keys())
           const returnVal = await this.promptForText(setting.name,Array.from(map.values()),keys,setting.description)
           for (let i=0; i < keys.length; i++) {
-            setting.val[keys[i]] = returnVal.textFieldValue(i)
+            setting.val[keys[i]] = returnVal.textFieldValue(i).trim()
           }
-          await this.loadTable(table,category,settingsObject)
+          await this.loadPrefsTable(table,category)
+        }
+      
+      } else if (setting.type == "multiselect") {
+        row.onSelect = async () => {
+
+          // We need to pass sets to the function.
+          const options = new Set(setting.options)
+          const selected = new Set(setting.val.map ? setting.val.map(a => a.identifier) : [])
+          const multiTable = new UITable()
+          
+          await this.loadMultiTable(multiTable, options, selected)
+          await multiTable.present()
+          
+          setting.val = [...options].filter(option => [...selected].includes(option.identifier))
+          await this.loadPrefsTable(table,category)
         }
       }
       table.addRow(row)
@@ -319,12 +328,42 @@ const weatherCal = {
     table.reload()
   },
   
+  // Load or reload a table with multi-select rows.
+  async loadMultiTable(table,options,selected) {
+    table.removeAllRows()
+    for (const item of options) {
+      const row = new UITableRow()
+      row.dismissOnSelect = false
+      row.height = 55
+      
+      const isSelected = selected.has(item.identifier)
+      row.backgroundColor = isSelected ? Color.dynamic(new Color("d8d8de"), new Color("2c2c2c")) : Color.dynamic(Color.white(), new Color("151517"))
+      
+      if (item.color) {
+        const colorCell = row.addText(isSelected ? "\u25CF" : "\u25CB")
+        colorCell.titleColor = item.color
+        colorCell.widthWeight = 1
+      }
+      
+      const titleCell = row.addText(item.title)
+      titleCell.widthWeight = 15
+      
+      row.onSelect = async () => {
+        if (isSelected) { selected.delete(item.identifier) }
+        else { selected.add(item.identifier) }
+        await this.loadMultiTable(table,options,selected)
+      }
+      table.addRow(row)
+    }
+    table.reload()
+  },
+  
   // Get the current settings for the widget or for editing.
-  getSettings(forEditing = false) {
+  async getSettings(forEditing = false) {
     let settingsFromFile  
     if (this.fm.fileExists(this.prefPath)) { settingsFromFile = JSON.parse(this.fm.readString(this.prefPath)) }
 
-    const settingsObject = this.defaultSettings()
+    const settingsObject = await this.defaultSettings()
     for (category in settingsObject) {
       for (item in settingsObject[category]) {
 
@@ -342,7 +381,7 @@ const weatherCal = {
 
   // Edit preferences of the widget.
   async editPreferences() {
-    const settingsObject = this.getSettings(true)
+    const settingsObject = await this.getSettings(true)
     const table = new UITable()
     table.showSeparators = true
 
@@ -355,7 +394,7 @@ const weatherCal = {
       row.onSelect = async () => {
         const subTable = new UITable()
         subTable.showSeparators = true
-        await this.loadTable(subTable,category,settingsObject)
+        await this.loadPrefsTable(subTable,category)
         await subTable.present()
       }
       table.addRow(row)
@@ -435,7 +474,7 @@ const weatherCal = {
       this.settings = layout
 
     } else {
-      this.settings = this.getSettings()
+      this.settings = await this.getSettings()
       this.settings.layout = layout
     }
     
@@ -647,14 +686,16 @@ const weatherCal = {
   // Set up the event data object.
   async setupEvents() {
     const eventSettings = this.settings.events
-
     let calSetting = eventSettings.selectCalendars
-    let calendars = []
-    if (Array.isArray(calSetting)) {
-      calendars = calSetting
-    } else if (typeof calSetting == "string") {
+    let calendars
+
+    // Old, manually-entered comma lists.
+    if (typeof calSetting == "string") {
       calSetting = calSetting.trim()
       calendars = calSetting.length > 0 ? calSetting.split(",") : []
+
+    } else {
+      calendars = calSetting
     }
 
     let numberOfDays = parseInt(eventSettings.numberOfDays)
@@ -674,7 +715,7 @@ const weatherCal = {
       if (diff < 0 || diff > numberOfDays) { return false }
       if (diff > 0 && this.now.getHours() < showFutureAt) { return false }
 
-      if (calendars.length && !calendars.includes(event.calendar.title)) { return false }
+      if (calendars.length && !(calendars.some(a => a.identifier == event.calendar.identifier) || calendars.includes(event.calendar.title))) { return false }
       if (event.title.startsWith("Canceled:")) { return false }
       if (event.isAllDay) { return eventSettings.showAllDay }
 
@@ -687,14 +728,15 @@ const weatherCal = {
   // Set up the reminders data object.
   async setupReminders() {
     const reminderSettings = this.settings.reminders
-
     let listSetting = reminderSettings.selectLists
-    let lists = []
-    if (Array.isArray(listSetting)) {
-      lists = listSetting
-    } else if (typeof listSetting == "string") {
+    let lists
+
+    // Old, manually-entered comma lists.
+    if (typeof listSetting == "string") {
       listSetting = listSetting.trim()
       lists = listSetting.length > 0 ? listSetting.split(",") : []
+    } else {
+      lists = listSetting
     }
 
     const reminders = await Reminder.allIncomplete()
@@ -715,7 +757,7 @@ const weatherCal = {
     })
 
     this.data.reminders = reminders.filter((reminder) => {
-      if (lists.length && !lists.includes(reminder.calendar.title)) { return false }
+      if (lists.length && !(lists.some(a => a.identifier == reminder.calendar.identifier) || lists.includes(reminder.calendar.title))) { return false }
       if (!reminder.dueDate)  { return reminderSettings.showWithoutDueDate }
       if (reminder.isOverdue) { return reminderSettings.showOverdue }
       if (reminderSettings.todayOnly) { return this.dateDiff(reminder.dueDate, this.now) == 0 }
@@ -747,7 +789,7 @@ const weatherCal = {
     
     if (!locationCache || locationCache.cacheExpired) {
       try { location = await Location.current() }
-      catch { location = locationCache || {} }
+      catch { location = locationCache || { cacheExpired: true } }
 
       try {
         const geocode = await Location.reverseGeocode(location.latitude, location.longitude, this.locale)
@@ -755,7 +797,9 @@ const weatherCal = {
       } catch {
         location.locality = locationCache ? locationCache.locality : null
       }
-      if (location && location.locality) this.fm.writeString(locationPath, JSON.stringify(location))
+      
+      // If (and only if) we have new data, write it to disk.
+      if (!location.cacheExpired) this.fm.writeString(locationPath, JSON.stringify(location))
     }
     this.data.location = location || locationCache
     if (!this.data.location.latitude) return false
@@ -1549,12 +1593,16 @@ const weatherCal = {
   },
   
   // Gets the cache.
-  getCache(path, minAge, maxAge) {
+  getCache(path, minAge = -1, maxAge) {
     if (!this.fm.fileExists(path)) return null
-    let cache = JSON.parse(this.fm.readString(path))
+    const cache = JSON.parse(this.fm.readString(path))
     const age = (this.now.getTime() - this.fm.modificationDate(path).getTime())/60000
-    if (maxAge && age > maxAge) return null
-    if (minAge && age > minAge) cache.cacheExpired = true
+    
+    // Maximum ages must be explicitly defined.
+    if (Number.isInteger(maxAge) && age > maxAge) return null
+    
+    // The cache is always expired if there's no acceptable minimum age.
+    if (minAge != -1 && (!minAge || age > minAge)) cache.cacheExpired = true
     return cache
   },
 
@@ -1688,7 +1736,7 @@ const weatherCal = {
     const defaultText = this.format.defaultText
     const textItem = container.addText(string)
     const textFont = (format && format.font && format.font.length) ? format.font : defaultText.font
-    const textSize = (format && format.size && format.size.length) ? format.size : defaultText.size
+    const textSize = (format && format.size && parseInt(format.size)) ? format.size : defaultText.size
     const textColor = (format && format.color && format.color.length) ? format.color : defaultText.color
     textItem.font = this.provideFont(textFont, parseInt(textSize))
     textItem.textColor = new Color(textColor)
@@ -1750,7 +1798,7 @@ const weatherCal = {
   },
   
   // Return the default widget settings.
-  defaultSettings() {
+  async defaultSettings() {
     const settings = {
       widget: {
         name: "Overall settings",
@@ -1793,7 +1841,7 @@ const weatherCal = {
         updateLocation: {
           val: "60",
           name: "Location update frequency",
-          description: "How often, in minutes, to update the current location. Set to 0 to never update.",
+          description: "How often, in minutes, to update the current location. Set to 0 to constantly update, or -1 to never update.",
         },
       },
       localization: {
@@ -2040,9 +2088,10 @@ const weatherCal = {
           type: "bool",        
         },
         selectCalendars: {
-          val: "",
+          val: [],
           name: "Calendars to show",
-          description: "Write the names of each calendar separated by commas, like this: Home,Work,Personal. Leave blank to show events from all calendars.",
+          type: "multiselect",
+          options: await getFromCalendar(),
         }, 
         showCalendarColor: {
           val: "rectangle left",
@@ -2092,9 +2141,10 @@ const weatherCal = {
           type: "bool",
         },
         selectLists: {
-          val: "",
+          val: [],
           name: "Lists to show",
-          description: "Write the names of each list separated by commas, like this: Home,Work,Personal. Leave blank to show reminders from all lists.",
+          type: "multiselect",
+          options: await getFromCalendar(true),
         }, 
         showListColor: {
           val: "rectangle left",
@@ -2281,6 +2331,12 @@ const weatherCal = {
         },
       },
     }
+    
+    async function getFromCalendar(forReminders) {
+      try { return await forReminders ? Calendar.forReminders() : Calendar.forEvents() }
+      catch { return [] }
+    }
+
     return settings
   },
 }
