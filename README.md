@@ -1,3 +1,6 @@
+# Weather-Cal (Scriptable App für Apple Devices)
+
+This is a Scriptable widget is a costumized version of mzeryck's Weather-Cal widget. For German users I added functionality to display the left data volume of your T-Mobile data plan and some Covid-19 data from Robert-Koch-Institute. 
 This is a Scriptable widget is a fork of the weather-cal.js from Max Zeryck (https://github.com/mzeryck/Weather-Cal). Everything about the Script is explained on his GitHub project.
 
 What I did is to add functionality for a small group of people in the custom item section of his script. In that way I added the left data volume of your T-Mobile data plan, some Robert-Koch Institut data about Covid-19 (new Cases in Germany, the incidence value of the local or a fixed state area and the new cases in that area).
@@ -5,7 +8,7 @@ What I did is to add functionality for a small group of people in the custom ite
 The Data form Robert-Koch Institute is used under the license of
 Robert Koch-Institut (RKI), dl-de/by-2-0
 
-I want to say thank you to:
+# I want to say thank you to:
 - Max Zeryck (mzeryck / https://github.com/mzeryck/Weather-Cal) for this awesome pice of work. He developed this great widget script and is responsible for the possibility to add custom functions (items) to his widget without losing the chance to use his improvements by opening his widget to third party functions. 
 - Markus Wittmann for pointing me to Max's script and the idea to implement own or additional functions.
 - olikdesign (https://gist.github.com/olikdesign) for his "Telekom Datenvolumen" Widget, wich helped me a lot to implement the T-Mobile Dataplan function.
@@ -17,7 +20,7 @@ Beispiel für ein mittleres Widget:
 ![IMG_1484](https://user-images.githubusercontent.com/74063738/102024184-bf5c1500-3d90-11eb-844d-2ea28af2f7c7.jpeg)
 ![IMG_1485](https://user-images.githubusercontent.com/74063738/102024189-c71bb980-3d90-11eb-95e6-448a17c48732.jpeg)
 
-Additional Functions:
+# Additional Functions:
 
 
 tmobile:
@@ -40,6 +43,11 @@ c19rki:
 This item shows yesterday's incidence value and new covid-19 cases from the Robert-Koch Institute.
 You are able to set the limits for the color bullets, the number of letters for the area name, your own area name and geodata for a fixed place in the configurations section (see below) of the code.
 
+
+# Version 
+
+Version 0.88 (03/09/2023)
+- Changes the RKI COVID-19 API call since the RKI changed the API.
 
 Version 0.87 (02/17/2022)
 - Changed the RKI COVID-19 API call since thr RKI changed the API.
@@ -70,7 +78,8 @@ Version 0.80 (11/29/2020)
 - Very first test version using the new custom area of Max's script.
 
 
-Here is the configuration I used for the medium widget:
+# Here is the configuration I used for the medium widget:
+
 ![IMG_1484](https://user-images.githubusercontent.com/74063738/102024294-79ec1780-3d91-11eb-9f45-b130d72a9a55.jpeg)
 ![IMG_1485](https://user-images.githubusercontent.com/74063738/102024304-87090680-3d91-11eb-9f3e-b86e250d091b.jpeg)
 
@@ -124,7 +133,8 @@ News:
 ![IMG_1653](https://user-images.githubusercontent.com/74063738/102933716-0f2e9080-44a3-11eb-8e88-5d2b9ba1798a.PNG)
 
 
-Here is the configuration I used for the large widget:
+# Here is the configuration I used for the large widget:
+
 ![IMG_1476](https://user-images.githubusercontent.com/74063738/102024402-2928ee80-3d92-11eb-877c-b339d3f91364.jpeg)
 
 
