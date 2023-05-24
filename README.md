@@ -8,7 +8,9 @@ What I did is to add functionality for a small group of people in the custom ite
 The Data form Robert-Koch Institute is used under the license of
 Robert Koch-Institut (RKI), dl-de/by-2-0
 
+
 # I want to say thank you to:
+
 - Max Zeryck (mzeryck / https://github.com/mzeryck/Weather-Cal) for this awesome pice of work. He developed this great widget script and is responsible for the possibility to add custom functions (items) to his widget without losing the chance to use his improvements by opening his widget to third party functions. 
 - Markus Wittmann for pointing me to Max's script and the idea to implement own or additional functions.
 - olikdesign (https://gist.github.com/olikdesign) for his "Telekom Datenvolumen" Widget, wich helped me a lot to implement the T-Mobile Dataplan function.
@@ -16,12 +18,13 @@ Robert Koch-Institut (RKI), dl-de/by-2-0
 - Raphael (rphl / https://github.com/rphl/corona-widget) and  tzschies (https://github.com/tzschies/incidence) for forking Kevin's widget and bringing up a lot of new ideas on how to use the RKI data.
 
 
-Beispiel für ein mittleres Widget:
+# Beispiel für ein mittleres Widget:
+
 ![IMG_1484](https://user-images.githubusercontent.com/74063738/102024184-bf5c1500-3d90-11eb-844d-2ea28af2f7c7.jpeg)
 ![IMG_1485](https://user-images.githubusercontent.com/74063738/102024189-c71bb980-3d90-11eb-95e6-448a17c48732.jpeg)
 
-# Additional Functions:
 
+# Additional Functions:
 
 tmobile:
 
@@ -42,6 +45,8 @@ c19rki:
 
 This item shows yesterday's incidence value and new covid-19 cases from the Robert-Koch Institute.
 You are able to set the limits for the color bullets, the number of letters for the area name, your own area name and geodata for a fixed place in the configurations section (see below) of the code.
+
+![picWC](https://github.com/icsAT/Weather-Cal/assets/74063738/d12a2fbc-28e9-4555-928c-eed74ecfb41c)
 
 
 # Version 
@@ -139,6 +144,7 @@ News:
 
 
 The configuration inside the code has to be changed. You have to change the layout like this:
+
 <img width="351" alt="Bildschirmfoto 2020-12-15 um 09 21 49" src="https://user-images.githubusercontent.com/74063738/102189773-6c30b200-3eb7-11eb-9e22-64b96aa33528.png">
 Everything else inside the code is fine as it is to start with.
 
