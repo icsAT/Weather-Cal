@@ -8,7 +8,7 @@
 Base Script from mzeryck https://github.com/mzeryck/Weather-Cal
 Custom functions from icsAT https://github.com/icsAT/Weather-Cal
 
-Version 0.88 from 03/09/2023
+Version 0.89 from 08/16/2023
 
 ~
 
@@ -102,20 +102,9 @@ const custom = {
       // Geodata to use a fixed location on item c19rki (f.e. "53.554,9.967"). Leave blank "" to match the device's locale.
       ,c19rkiGeodata: ""
     
-      // URL to open on touch
-      ,deUrl:          "https://experience.arcgis.com/experience/478220a4c454480e823b17327b2bf1d4"
-      ,rkiURL:         "https://experience.arcgis.com/experience/478220a4c454480e823b17327b2bf1d4"
-      ,beURL:          "https://www.berlin.de/corona/lagebericht/desktop/corona.html"
-      ,byURL:          "https://www.lgl.bayern.de/gesundheit/infektionsschutz/infektionskrankheiten_a_z/coronavirus/karte_coronavirus/index.htm"
-      ,heURL:          "https://soziales.hessen.de/gesundheit/corona-in-hessen/taegliche-uebersicht-der-bestaetigten-sars-cov-2-faelle"
-      ,hhURL:          "https://www.hamburg.de/corona-zahlen"
-      ,ndsURL:         "https://www.niedersachsen.de/Coronavirus/aktuelle_lage_in_niedersachsen/"
-      ,rpURL:          "https://lua.rlp.de/de/presse/detail/news/News/detail/coronavirus-sars-cov-2-aktuelle-fallzahlen-fuer-rheinland-pfalz/"
-      ,shURL:          "https://schleswig-holstein.de/DE/Schwerpunkte/Coronavirus/Zahlen/zahlen_node.html"
-  
       // time the values should be cached
-      ,deCache:       60
-      ,rkiCache:      60
+      ,deCache:       1
+      ,rkiCache:      1
   
     },
   
@@ -141,9 +130,6 @@ const custom = {
     
       // The text shown after the remaining data volume of your data plan.
       dataVolumeLeftLable: "verfügbar"
-    
-      // The text shown with new covid-19 cases in Germany.
-      ,newCasesTitel: "neue Fälle in DE"
       
     },
     
@@ -217,13 +203,15 @@ const custom = {
       
         try {
   
-          const c19deApiUrl = "https://services7.arcgis.com/mOBPykOjAyBO2ZKk/ArcGIS/rest/services/rki_key_data_hubv/FeatureServer/0/query?where=AdmUnitId=0+AND+BundeslandId=0&outFields=AnzFallNeu&returnGeometry=false&outSR=4326&f=json"
+          const c19deApiUrl = "https://api.corona-zahlen.org/germany"
           let c19deRequest = new Request(c19deApiUrl)
           let c19deRawData = await c19deRequest.loadJSON()
           if (!c19deRawData || c19deRawData.length == 0) { throw 0 }
   
           c19deData = {
-            c19deNewCases: c19deRawData.features[0].attributes.AnzFallNeu
+            c19deNewCases: c19deRawData.delta.cases.toLocaleString(),
+            c19deIncidence: parseFloat(c19deRawData.weekIncidence.toFixed(1))
+
           }
           if (c19deData.c19deNewCases == null) {
             c19deData.c19deNewCases = 0
@@ -240,11 +228,7 @@ const custom = {
   
       }
     
-      return {
-  
-        c19deNewCases: c19deData.c19deNewCases
-  
-      }
+      return c19deData
   
     },
   
@@ -269,18 +253,20 @@ const custom = {
   
         try {
   
-          const c19rkiOutput="RS,GEN,cases7_per_100k"
+          const c19rkiOutput="RS,GEN"
           const c19rkiIncidenceApiUrl = `https://services7.arcgis.com/mOBPykOjAyBO2ZKk/arcgis/rest/services/RKI_Landkreisdaten/FeatureServer/0/query?where=1%3D1&outFields=${c19rkiOutput}&geometry=${locationData.longitude.toFixed(3)}%2C${locationData.latitude.toFixed(3)}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelWithin&returnGeometry=false&outSR=4326&f=json`
     
           let c19rkiIncidenceRequest = new Request(c19rkiIncidenceApiUrl)
           let c19rkiIncidenceRawData = await c19rkiIncidenceRequest.loadJSON()
+
           const c19rkiIncidenceData = c19rkiIncidenceRawData.features[0].attributes
-  
-          const c19rkiNewCasesApiUrl = `https://services7.arcgis.com/mOBPykOjAyBO2ZKk/ArcGIS/rest/services/rki_key_data_hubv/FeatureServer/0/query?where=AdmUnitId=${c19rkiIncidenceData.RS}&outFields=AnzFallNeu&returnGeometry=false&outSR=4326&f=json`
+
+          const c19rkiNewCasesApiUrl = `https://api.corona-zahlen.org/districts/${c19rkiIncidenceData.RS}`
   
           let c19rkiNewCasesRequest = new Request(c19rkiNewCasesApiUrl)
           let c19rkiNewCasesRawData = await c19rkiNewCasesRequest.loadJSON()
-          let c19rkiNewCases = c19rkiNewCasesRawData.features[0].attributes.AnzFallNeu
+
+          let c19rkiNewCases = c19rkiNewCasesRawData.data[c19rkiIncidenceData.RS].delta.cases
   
           if (c19rkiNewCases == null) {
             c19rkiNewCases = 0
@@ -289,7 +275,7 @@ const custom = {
           c19rkiData = {
             
             c19rkiArea: c19rkiIncidenceData.GEN,
-            c19rkiIncidence: parseFloat(c19rkiIncidenceData.cases7_per_100k.toFixed(1)),
+            c19rkiIncidence: parseFloat(c19rkiNewCasesRawData.data[c19rkiIncidenceData.RS].weekIncidence.toFixed(1)),
             c19rkiNewCases: c19rkiNewCases.toLocaleString()
   
           }
@@ -409,16 +395,23 @@ const custom = {
       c19deStack.layoutHorizontally()
       c19deStack.centerAlignContent()
       c19deStack.setPadding(code.padding/2, code.padding, code.padding/2, code.padding)
-      if (custom.c19Settings.deUrl) { c19deStack.url = custom.c19Settings.deUrl }
   
       let c19deText = "🦠"
       let c19deLine = code.provideText(c19deText, c19deStack, custom.textFormat.c19de)
       c19deStack.addSpacer(1)
   
-      if (c19deData.c19deNewCases) {
-        c19deText = c19deData.c19deNewCases.toLocaleString() + " " + custom.localizedText.newCasesTitel
+      c19deText = "DE: "
+
+      if (c19deData.c19deIncidence) {
+        c19deText = c19deText + c19deData.c19deIncidence.toLocaleString() + " "
       } else {
-        c19deText = "n/a " + custom.localizedText.newCasesTitel
+        c19deText = c19deText + "n/a "
+      }
+
+      if (c19deData.c19deNewCases) {
+        c19deText = c19deText + "(+ " + c19deData.c19deNewCases.toLocaleString() + ")"
+      } else {
+        c19deText = c19deText + "(n/a)"
       }
       
       c19deLine = code.provideText(c19deText, c19deStack, custom.textFormat.c19de)
@@ -437,7 +430,6 @@ const custom = {
       c19rkiStack.layoutHorizontally()
       c19rkiStack.centerAlignContent()
       c19rkiStack.setPadding(code.padding/2, code.padding*2, code.padding/2, code.padding)
-      if (custom.c19Settings.rkiUrl) { c19rkiStack.url = custom.c19Settings.rkiUrl }
   
       // Incidence Idicator Bullet
       let bullet = c19rkiStack.addText("●")
