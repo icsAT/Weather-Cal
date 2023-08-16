@@ -103,8 +103,8 @@ const custom = {
       ,c19rkiGeodata: ""
     
       // time the values should be cached
-      ,deCache:       1
-      ,rkiCache:      1
+      ,deCache:       60
+      ,rkiCache:      60
   
     },
   
