@@ -51,6 +51,9 @@ You are able to set the limits for the color bullets, the number of letters for 
 
 # Version 
 
+Version 0.89 (08/16/2023)
+- Due to RKI discontinueing to refresh the API Date on June 2nd an switching to huge flat-files, which can not be used by iOS-Widgets, I changed to the 3rd Party API rki-covid-api (https://github.com/marlon360/rki-covid-api) of Marlon Lückert (https://github.com/marlon360). Thanks for your Work Marlon and also thanks to Peter Markewitz (https://github.com/Rubber1Duck), who is maintaining the API.
+
 Version 0.88 (03/09/2023)
 - Changes the RKI COVID-19 API call since the RKI changed the API.
 
